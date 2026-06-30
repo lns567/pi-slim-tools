@@ -56,11 +56,9 @@ export default function (pi: ExtensionAPI) {
           ? `${args.command.slice(0, 67)}…`
           : args.command
         : "…";
-      const left = theme.fg("bashMode", `$ ${cmd}`);
-      const right = theme.fg("dim", "running…");
-      const fn = alignRight(theme, "toolPendingBg", left, right);
+      const left = theme.bg("toolPendingBg", theme.fg("bashMode", `$ ${cmd}`));
       return {
-        render: (w: number) => fn(w),
+        render: () => [left],
         invalidate() {},
       };
     },
@@ -103,11 +101,9 @@ export default function (pi: ExtensionAPI) {
     ...origRead,
     renderShell: "self",
     renderCall(args, theme, context) {
-      let left = theme.fg("toolTitle", "📄 ") + theme.fg("accent", context.argsComplete ? args.path : "…");
+      let left = theme.bg("toolPendingBg", theme.fg("toolTitle", "📄 ") + theme.fg("accent", context.argsComplete ? args.path : "…"));
       if (args.offset) left += theme.fg("dim", ` @L${args.offset}`);
-      const right = theme.fg("dim", "reading…");
-      const fn = alignRight(theme, "toolPendingBg", left, right);
-      return { render: (w: number) => fn(w), invalidate() {} };
+      return { render: () => [left], invalidate() {} };
     },
     renderResult(result, { expanded }, theme) {
       const content = result.content[0];
@@ -144,10 +140,8 @@ export default function (pi: ExtensionAPI) {
     ...origEdit,
     renderShell: "self",
     renderCall(args, theme, context) {
-      const left = theme.fg("toolTitle", "✏️ ") + theme.fg("accent", context.argsComplete ? args.path : "…");
-      const right = theme.fg("dim", "editing…");
-      const fn = alignRight(theme, "toolPendingBg", left, right);
-      return { render: (w: number) => fn(w), invalidate() {} };
+      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "✏️ ") + theme.fg("accent", context.argsComplete ? args.path : "…"));
+      return { render: () => [left], invalidate() {} };
     },
     renderResult(result, { expanded }, theme) {
       const content = result.content[0];
@@ -192,10 +186,8 @@ export default function (pi: ExtensionAPI) {
     renderShell: "self",
     renderCall(args, theme, context) {
       const n = args.content ? args.content.split("\n").length : 0;
-      const left = theme.fg("toolTitle", "📝 ") + theme.fg("accent", context.argsComplete ? args.path : "…") + theme.fg("dim", ` (${n}L)`);
-      const right = theme.fg("dim", "writing…");
-      const fn = alignRight(theme, "toolPendingBg", left, right);
-      return { render: (w: number) => fn(w), invalidate() {} };
+      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "📝 ") + theme.fg("accent", context.argsComplete ? args.path : "…") + theme.fg("dim", ` (${n}L)`));
+      return { render: () => [left], invalidate() {} };
     },
     renderResult(result, { expanded }, theme) {
       const color = result.isError ? "toolErrorBg" : "toolSuccessBg";
@@ -226,10 +218,8 @@ export default function (pi: ExtensionAPI) {
     ...origGrep,
     renderShell: "self",
     renderCall(args, theme, context) {
-      const left = theme.fg("toolTitle", "🔍 ") + theme.fg("accent", context.argsComplete ? args.pattern : "…");
-      const right = theme.fg("dim", "searching…");
-      const fn = alignRight(theme, "toolPendingBg", left, right);
-      return { render: (w: number) => fn(w), invalidate() {} };
+      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "🔍 ") + theme.fg("accent", context.argsComplete ? args.pattern : "…"));
+      return { render: () => [left], invalidate() {} };
     },
     renderResult(result, { expanded }, theme) {
       const content = result.content[0];
@@ -264,10 +254,8 @@ export default function (pi: ExtensionAPI) {
     ...origFind,
     renderShell: "self",
     renderCall(args, theme, context) {
-      const left = theme.fg("toolTitle", "📁 ") + (context.argsComplete ? args.path : "…");
-      const right = theme.fg("dim", "finding…");
-      const fn = alignRight(theme, "toolPendingBg", left, right);
-      return { render: (w: number) => fn(w), invalidate() {} };
+      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "📁 ") + (context.argsComplete ? args.path : "…"));
+      return { render: () => [left], invalidate() {} };
     },
     renderResult(result, { expanded }, theme) {
       const content = result.content[0];
@@ -299,10 +287,8 @@ export default function (pi: ExtensionAPI) {
     ...origLs,
     renderShell: "self",
     renderCall(args, theme, context) {
-      const left = theme.fg("toolTitle", "📂 ") + (context.argsComplete ? (args.path ?? ".") : "…");
-      const right = theme.fg("dim", "listing…");
-      const fn = alignRight(theme, "toolPendingBg", left, right);
-      return { render: (w: number) => fn(w), invalidate() {} };
+      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "📂 ") + (context.argsComplete ? (args.path ?? ".") : "…"));
+      return { render: () => [left], invalidate() {} };
     },
     renderResult(result, { expanded }, theme) {
       const content = result.content[0];
