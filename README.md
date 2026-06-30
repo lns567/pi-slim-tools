@@ -25,12 +25,12 @@ Copy to `~/.pi/agent/extensions/` then `/reload`.
 | 工具 Tool | 折叠时 Collapsed | 展开 Expanded |
 |-----------|-----------------|---------------|
 | `bash` | `$ command  ✓` | 完整输出 full output |
-| `read` | `📄 path  42L` | 文件内容 file content |
-| `edit` | `✏️ path  +5 -3` | diff |
-| `write` | `📝 path (155L)  ✓` | 完整结果 full result |
-| `grep` | `🔍 pattern  7 matches` | 匹配结果 matches |
-| `find` | `📁 path  1 files` | 查找结果 files found |
-| `ls` | `📂 path  15 entries` | 文件列表 file list |
+| `read` | `▸ path  42L` | 文件内容 file content |
+| `edit` | `~ path  +5 -3` | diff |
+| `write` | `• path (155L)  ✓` | 完整结果 full result |
+| `grep` | `# pattern  7 matches` | 匹配结果 matches |
+| `find` | `? path  1 files` | 查找结果 files found |
+| `ls` | `/ path  15 entries` | 文件列表 file list |
 
 按 **Ctrl+O** 展开/折叠。 Press **Ctrl+O** to expand/collapse.
 
