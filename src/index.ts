@@ -52,7 +52,7 @@ export default function (pi: ExtensionAPI) {
           ? `${args.command.slice(0, 57)}…`
           : args.command
         : "…";
-      let left = theme.fg("bashMode", `$ ${cmd}`);
+      let left = theme.fg("bashMode", args.command ? `$ ${cmd}` : "$ …");
       if (context.state._status) left += "  " + context.state._status;
 
       const badge = expandBadge(context.expanded);
@@ -94,7 +94,7 @@ export default function (pi: ExtensionAPI) {
     ...origRead,
     renderShell: "self",
     renderCall(args, theme, context) {
-      let left = theme.fg("toolTitle", "📄 ") + theme.fg("accent", context.argsComplete ? args.path : "…");
+      let left = theme.fg("toolTitle", "📄 ") + theme.fg("accent", args.path || "…");
       if (args.offset) left += theme.fg("dim", ` @L${args.offset}`);
       if (context.state._status) left += "  " + context.state._status;
       const badge = expandBadge(context.expanded);
@@ -141,7 +141,7 @@ export default function (pi: ExtensionAPI) {
     ...origEdit,
     renderShell: "self",
     renderCall(args, theme, context) {
-      let left = theme.fg("toolTitle", "✏️ ") + theme.fg("accent", context.argsComplete ? args.path : "…");
+      let left = theme.fg("toolTitle", "✏️ ") + theme.fg("accent", args.path || "…");
       if (context.state._status) left += "  " + context.state._status;
       const badge = expandBadge(context.expanded);
       const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
@@ -194,7 +194,7 @@ export default function (pi: ExtensionAPI) {
     renderShell: "self",
     renderCall(args, theme, context) {
       const n = args.content ? args.content.split("\n").length : 0;
-      let left = theme.fg("toolTitle", "📝 ") + theme.fg("accent", context.argsComplete ? args.path : "…") + theme.fg("dim", ` (${n}L)`);
+      let left = theme.fg("toolTitle", "📝 ") + theme.fg("accent", args.path || "…") + theme.fg("dim", ` (${n}L)`);
       if (context.state._status) left += "  " + context.state._status;
       const badge = expandBadge(context.expanded);
       const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
@@ -233,7 +233,7 @@ export default function (pi: ExtensionAPI) {
     ...origGrep,
     renderShell: "self",
     renderCall(args, theme, context) {
-      let left = theme.fg("toolTitle", "🔍 ") + theme.fg("accent", context.argsComplete ? args.pattern : "…");
+      let left = theme.fg("toolTitle", "🔍 ") + theme.fg("accent", args.pattern || "…");
       if (context.state._status) left += "  " + context.state._status;
       const badge = expandBadge(context.expanded);
       const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
@@ -273,7 +273,7 @@ export default function (pi: ExtensionAPI) {
     ...origFind,
     renderShell: "self",
     renderCall(args, theme, context) {
-      let left = theme.fg("toolTitle", "📁 ") + (context.argsComplete ? args.path : "…");
+      let left = theme.fg("toolTitle", "📁 ") + (args.path || "…");
       if (context.state._status) left += "  " + context.state._status;
       const badge = expandBadge(context.expanded);
       const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
@@ -313,7 +313,7 @@ export default function (pi: ExtensionAPI) {
     ...origLs,
     renderShell: "self",
     renderCall(args, theme, context) {
-      let left = theme.fg("toolTitle", "📂 ") + (context.argsComplete ? (args.path ?? ".") : "…");
+      let left = theme.fg("toolTitle", "📂 ") + (args.path || "…");
       if (context.state._status) left += "  " + context.state._status;
       const badge = expandBadge(context.expanded);
       const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
