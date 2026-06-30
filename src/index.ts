@@ -1,6 +1,6 @@
 /**
- * Auto-collapse tool outputs - compact display with right-aligned expand hint.
- * Ctrl+O to expand/collapse.
+ * Auto-collapse tool outputs - everything on one line when collapsed.
+ * Ctrl+O to expand.
  */
 import type {
   BashToolDetails,
@@ -18,27 +18,24 @@ import {
   createWriteTool,
   keyHint,
 } from "@earendil-works/pi-coding-agent";
-import { Text, visibleWidth } from "@earendil-works/pi-tui";
+import { visibleWidth } from "@earendil-works/pi-tui";
 
 function expandBadge(expanded: boolean): string {
   return expanded ? " ▼" : ` ▶ ${keyHint("app.tools.expand", "展开")}`;
 }
 
-/** Right-align badge: pushes the expand badge to the end of the line */
-function alignRight(
+/** Right-align the expand badge in a full-width background line */
+function bgLine(
   theme: any,
   bgColor: string,
   left: string,
   right: string,
 ): (width: number) => string[] {
-  const leftText = theme.bg(bgColor, left);
-  const rightText = theme.bg(bgColor, right);
+  const l = theme.bg(bgColor, left);
+  const r = theme.bg(bgColor, right);
   return (width: number) => {
-    const lw = visibleWidth(leftText);
-    const rw = visibleWidth(rightText);
-    const pad = Math.max(1, width - lw - rw);
-    // pad with background-colored spaces
-    return [leftText + theme.bg(bgColor, " ".repeat(pad)) + rightText];
+    const pad = Math.max(1, width - visibleWidth(l) - visibleWidth(r));
+    return [l + theme.bg(bgColor, " ".repeat(pad)) + r];
   };
 }
 
@@ -52,43 +49,47 @@ export default function (pi: ExtensionAPI) {
     renderShell: "self",
     renderCall(args, theme, context) {
       const cmd = context.argsComplete && args.command
-        ? args.command.length > 70
-          ? `${args.command.slice(0, 67)}…`
+        ? args.command.length > 60
+          ? `${args.command.slice(0, 57)}…`
           : args.command
         : "…";
-      const left = theme.bg("toolPendingBg", theme.fg("bashMode", `$ ${cmd}`));
+      let left = theme.fg("bashMode", `$ ${cmd}`);
+
+      // Append result status if available (set by renderResult via state)
+      if (context.state._status) left += "  " + context.state._status;
+
+      const badge = expandBadge(context.expanded);
+      const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
       return {
-        render: () => [left],
+        render: (w: number) => fn(w),
         invalidate() {},
       };
     },
-    renderResult(result, { expanded }, theme) {
+    renderResult(result, { expanded }, theme, context) {
       const color = result.isError ? "toolErrorBg" : "toolSuccessBg";
-      const rightStr = expandBadge(expanded);
-      const right = theme.fg("dim", rightStr);
+
+      // Compute status and store in shared state for renderCall to pick up
+      const content = result.content[0];
+      const output = content?.type === "text" ? content.text : "";
+      const exitMatch = output.match(/exit code: (\d+)/);
+      const ok = !exitMatch || exitMatch[1] === "0";
+      context.state._status = ok ? theme.fg("success", "✓") : theme.fg("error", `✗ ${exitMatch![1]}`);
+      context.state._bg = color;
 
       if (!expanded) {
-        const content = result.content[0];
-        const output = content?.type === "text" ? content.text : "";
-        const exitMatch = output.match(/exit code: (\d+)/);
-        const ok = !exitMatch || exitMatch[1] === "0";
-        const status = ok ? theme.fg("success", "✓") : theme.fg("error", `✗ ${exitMatch![1]}`);
-        const fn = alignRight(theme, color, status, right);
-        return { render: (w: number) => fn(w), invalidate() {} };
+        // Collapsed: status is on the renderCall line; show nothing here
+        context.invalidate(); // trigger re-render of renderCall to pick up status
+        return { render: () => [], invalidate() {} };
       }
 
-      const content = result.content[0];
-      const text = content?.type === "text" ? content.text : "";
-      const all = text.split("\n");
-      // first lines: output; last line: badge right-aligned
+      // Expanded: show full output
+      const all = output.split("\n");
+      const badge = theme.fg("dim", expandBadge(true));
       const fn = (w: number) => {
-        const result: string[] = [];
-        for (const line of all) {
-          result.push(theme.bg(color, line));
-        }
-        const rw = visibleWidth(right);
-        const pad = Math.max(1, w - rw);
-        result.push(theme.bg(color, " ".repeat(pad)) + right);
+        const result: string[] = all.map((l) => theme.bg(color, l));
+        const r = theme.bg(color, badge);
+        const pad = Math.max(1, w - visibleWidth(r));
+        result.push(theme.bg(color, " ".repeat(pad)) + r);
         return result;
       };
       return { render: fn, invalidate() {} };
@@ -101,33 +102,36 @@ export default function (pi: ExtensionAPI) {
     ...origRead,
     renderShell: "self",
     renderCall(args, theme, context) {
-      let left = theme.bg("toolPendingBg", theme.fg("toolTitle", "📄 ") + theme.fg("accent", context.argsComplete ? args.path : "…"));
+      let left = theme.fg("toolTitle", "📄 ") + theme.fg("accent", context.argsComplete ? args.path : "…");
       if (args.offset) left += theme.fg("dim", ` @L${args.offset}`);
-      return { render: () => [left], invalidate() {} };
+      if (context.state._status) left += "  " + context.state._status;
+      const badge = expandBadge(context.expanded);
+      const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
+      return { render: (w: number) => fn(w), invalidate() {} };
     },
-    renderResult(result, { expanded }, theme) {
+    renderResult(result, { expanded }, theme, context) {
       const content = result.content[0];
       const color = result.isError ? "toolErrorBg" : "toolSuccessBg";
-      const right = theme.fg("dim", expandBadge(expanded));
+      context.state._bg = color;
 
       if (content?.type === "image") {
-        const fn = alignRight(theme, color, theme.fg("dim", "🖼 image"), right);
-        return { render: (w: number) => fn(w), invalidate() {} };
+        context.state._status = theme.fg("dim", "🖼");
+      } else if (content?.type === "text") {
+        const lines = content.text.split("\n").length;
+        context.state._status = theme.fg("dim", `${lines}L`);
       }
-      if (content?.type !== "text") return new Text("", 0, 0);
+      context.invalidate();
 
-      const lines = content.text.split("\n").length;
-      if (!expanded) {
-        const fn = alignRight(theme, color, theme.fg("dim", `${lines} lines`), right);
-        return { render: (w: number) => fn(w), invalidate() {} };
-      }
+      if (!expanded) return { render: () => [], invalidate() {} };
+      if (content?.type !== "text") return { render: () => [], invalidate() {} };
 
+      const badge = theme.fg("dim", expandBadge(true));
       const all = content.text.split("\n");
       const fn = (w: number) => {
         const result: string[] = all.map((l) => theme.bg(color, l));
-        const rw = visibleWidth(right);
-        const pad = Math.max(1, w - rw);
-        result.push(theme.bg(color, " ".repeat(pad)) + right);
+        const r = theme.bg(color, badge);
+        const pad = Math.max(1, w - visibleWidth(r));
+        result.push(theme.bg(color, " ".repeat(pad)) + r);
         return result;
       };
       return { render: fn, invalidate() {} };
@@ -140,39 +144,41 @@ export default function (pi: ExtensionAPI) {
     ...origEdit,
     renderShell: "self",
     renderCall(args, theme, context) {
-      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "✏️ ") + theme.fg("accent", context.argsComplete ? args.path : "…"));
-      return { render: () => [left], invalidate() {} };
+      let left = theme.fg("toolTitle", "✏️ ") + theme.fg("accent", context.argsComplete ? args.path : "…");
+      if (context.state._status) left += "  " + context.state._status;
+      const badge = expandBadge(context.expanded);
+      const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
+      return { render: (w: number) => fn(w), invalidate() {} };
     },
-    renderResult(result, { expanded }, theme) {
+    renderResult(result, { expanded }, theme, context) {
       const content = result.content[0];
       const color = result.isError ? "toolErrorBg" : "toolSuccessBg";
-      const right = theme.fg("dim", expandBadge(expanded));
+      context.state._bg = color;
 
       if (content?.type === "text" && content.text.startsWith("Error")) {
-        const fn = alignRight(theme, color, theme.fg("error", `✗ ${content.text.split("\n")[0]}`), right);
-        return { render: (w: number) => fn(w), invalidate() {} };
+        context.state._status = theme.fg("error", "✗");
+      } else {
+        const details = result.details as EditToolDetails | undefined;
+        const diffLines = details?.diff?.split("\n") ?? [];
+        let adds = 0, dels = 0;
+        for (const l of diffLines) {
+          if (l.startsWith("+") && !l.startsWith("+++")) adds++;
+          if (l.startsWith("-") && !l.startsWith("---")) dels++;
+        }
+        context.state._status = `${theme.fg("success", `+${adds}`)} ${theme.fg("error", `-${dels}`)}`;
       }
+      context.invalidate();
 
+      if (!expanded) return { render: () => [], invalidate() {} };
+
+      const badge = theme.fg("dim", expandBadge(true));
       const details = result.details as EditToolDetails | undefined;
-      const diffLines = details?.diff?.split("\n") ?? [];
-      let adds = 0, dels = 0;
-      for (const l of diffLines) {
-        if (l.startsWith("+") && !l.startsWith("+++")) adds++;
-        if (l.startsWith("-") && !l.startsWith("---")) dels++;
-      }
-
-      if (!expanded) {
-        const left = `${theme.fg("success", `+${adds}`)} ${theme.fg("error", `-${dels}`)}`;
-        const fn = alignRight(theme, color, left, right);
-        return { render: (w: number) => fn(w), invalidate() {} };
-      }
-
       const all = (details?.diff ?? "Applied").split("\n");
       const fn = (w: number) => {
         const result: string[] = all.map((l) => theme.bg(color, l));
-        const rw = visibleWidth(right);
-        const pad = Math.max(1, w - rw);
-        result.push(theme.bg(color, " ".repeat(pad)) + right);
+        const r = theme.bg(color, badge);
+        const pad = Math.max(1, w - visibleWidth(r));
+        result.push(theme.bg(color, " ".repeat(pad)) + r);
         return result;
       };
       return { render: fn, invalidate() {} };
@@ -186,26 +192,29 @@ export default function (pi: ExtensionAPI) {
     renderShell: "self",
     renderCall(args, theme, context) {
       const n = args.content ? args.content.split("\n").length : 0;
-      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "📝 ") + theme.fg("accent", context.argsComplete ? args.path : "…") + theme.fg("dim", ` (${n}L)`));
-      return { render: () => [left], invalidate() {} };
+      let left = theme.fg("toolTitle", "📝 ") + theme.fg("accent", context.argsComplete ? args.path : "…") + theme.fg("dim", ` (${n}L)`);
+      if (context.state._status) left += "  " + context.state._status;
+      const badge = expandBadge(context.expanded);
+      const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
+      return { render: (w: number) => fn(w), invalidate() {} };
     },
-    renderResult(result, { expanded }, theme) {
+    renderResult(result, { expanded }, theme, context) {
       const color = result.isError ? "toolErrorBg" : "toolSuccessBg";
-      const right = theme.fg("dim", expandBadge(expanded));
+      context.state._bg = color;
+      context.state._status = theme.fg("success", "✓");
+      context.invalidate();
 
-      if (!expanded) {
-        const fn = alignRight(theme, color, theme.fg("success", "✓ written"), right);
-        return { render: (w: number) => fn(w), invalidate() {} };
-      }
+      if (!expanded) return { render: () => [], invalidate() {} };
 
       const content = result.content[0];
       const text = content?.type === "text" ? content.text : "Written";
+      const badge = theme.fg("dim", expandBadge(true));
       const all = text.split("\n");
       const fn = (w: number) => {
         const result: string[] = all.map((l) => theme.bg(color, l));
-        const rw = visibleWidth(right);
-        const pad = Math.max(1, w - rw);
-        result.push(theme.bg(color, " ".repeat(pad)) + right);
+        const r = theme.bg(color, badge);
+        const pad = Math.max(1, w - visibleWidth(r));
+        result.push(theme.bg(color, " ".repeat(pad)) + r);
         return result;
       };
       return { render: fn, invalidate() {} };
@@ -218,30 +227,30 @@ export default function (pi: ExtensionAPI) {
     ...origGrep,
     renderShell: "self",
     renderCall(args, theme, context) {
-      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "🔍 ") + theme.fg("accent", context.argsComplete ? args.pattern : "…"));
-      return { render: () => [left], invalidate() {} };
+      let left = theme.fg("toolTitle", "🔍 ") + theme.fg("accent", context.argsComplete ? args.pattern : "…");
+      if (context.state._status) left += "  " + context.state._status;
+      const badge = expandBadge(context.expanded);
+      const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
+      return { render: (w: number) => fn(w), invalidate() {} };
     },
-    renderResult(result, { expanded }, theme) {
+    renderResult(result, { expanded }, theme, context) {
       const content = result.content[0];
       const output = content?.type === "text" ? content.text : "";
       const matchCount = output.split("\n").filter((l) => l.trim()).length;
       const color = result.isError ? "toolErrorBg" : "toolSuccessBg";
-      const right = theme.fg("dim", expandBadge(expanded));
+      context.state._bg = color;
+      context.state._status = theme.fg("dim", !output.trim() ? "0 matches" : `${matchCount} matches`);
+      context.invalidate();
 
-      if (!expanded) {
-        const left = !output.trim()
-          ? theme.fg("dim", "0 matches")
-          : theme.fg("dim", `${matchCount} matches`);
-        const fn = alignRight(theme, color, left, right);
-        return { render: (w: number) => fn(w), invalidate() {} };
-      }
+      if (!expanded) return { render: () => [], invalidate() {} };
 
+      const badge = theme.fg("dim", expandBadge(true));
       const all = output.split("\n");
       const fn = (w: number) => {
         const result: string[] = all.map((l) => theme.bg(color, l));
-        const rw = visibleWidth(right);
-        const pad = Math.max(1, w - rw);
-        result.push(theme.bg(color, " ".repeat(pad)) + right);
+        const r = theme.bg(color, badge);
+        const pad = Math.max(1, w - visibleWidth(r));
+        result.push(theme.bg(color, " ".repeat(pad)) + r);
         return result;
       };
       return { render: fn, invalidate() {} };
@@ -254,27 +263,30 @@ export default function (pi: ExtensionAPI) {
     ...origFind,
     renderShell: "self",
     renderCall(args, theme, context) {
-      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "📁 ") + (context.argsComplete ? args.path : "…"));
-      return { render: () => [left], invalidate() {} };
+      let left = theme.fg("toolTitle", "📁 ") + (context.argsComplete ? args.path : "…");
+      if (context.state._status) left += "  " + context.state._status;
+      const badge = expandBadge(context.expanded);
+      const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
+      return { render: (w: number) => fn(w), invalidate() {} };
     },
-    renderResult(result, { expanded }, theme) {
+    renderResult(result, { expanded }, theme, context) {
       const content = result.content[0];
       const output = content?.type === "text" ? content.text : "";
       const fileCount = output.split("\n").filter((l) => l.trim()).length;
       const color = result.isError ? "toolErrorBg" : "toolSuccessBg";
-      const right = theme.fg("dim", expandBadge(expanded));
+      context.state._bg = color;
+      context.state._status = theme.fg("dim", `${fileCount} files`);
+      context.invalidate();
 
-      if (!expanded) {
-        const fn = alignRight(theme, color, theme.fg("dim", `${fileCount} files`), right);
-        return { render: (w: number) => fn(w), invalidate() {} };
-      }
+      if (!expanded) return { render: () => [], invalidate() {} };
 
+      const badge = theme.fg("dim", expandBadge(true));
       const all = output.split("\n");
       const fn = (w: number) => {
         const result: string[] = all.map((l) => theme.bg(color, l));
-        const rw = visibleWidth(right);
-        const pad = Math.max(1, w - rw);
-        result.push(theme.bg(color, " ".repeat(pad)) + right);
+        const r = theme.bg(color, badge);
+        const pad = Math.max(1, w - visibleWidth(r));
+        result.push(theme.bg(color, " ".repeat(pad)) + r);
         return result;
       };
       return { render: fn, invalidate() {} };
@@ -287,27 +299,30 @@ export default function (pi: ExtensionAPI) {
     ...origLs,
     renderShell: "self",
     renderCall(args, theme, context) {
-      const left = theme.bg("toolPendingBg", theme.fg("toolTitle", "📂 ") + (context.argsComplete ? (args.path ?? ".") : "…"));
-      return { render: () => [left], invalidate() {} };
+      let left = theme.fg("toolTitle", "📂 ") + (context.argsComplete ? (args.path ?? ".") : "…");
+      if (context.state._status) left += "  " + context.state._status;
+      const badge = expandBadge(context.expanded);
+      const fn = bgLine(theme, "toolPendingBg", left, theme.fg("dim", badge));
+      return { render: (w: number) => fn(w), invalidate() {} };
     },
-    renderResult(result, { expanded }, theme) {
+    renderResult(result, { expanded }, theme, context) {
       const content = result.content[0];
       const output = content?.type === "text" ? content.text : "";
       const entryCount = output.split("\n").filter((l) => l.trim()).length;
       const color = result.isError ? "toolErrorBg" : "toolSuccessBg";
-      const right = theme.fg("dim", expandBadge(expanded));
+      context.state._bg = color;
+      context.state._status = theme.fg("dim", `${entryCount} entries`);
+      context.invalidate();
 
-      if (!expanded) {
-        const fn = alignRight(theme, color, theme.fg("dim", `${entryCount} entries`), right);
-        return { render: (w: number) => fn(w), invalidate() {} };
-      }
+      if (!expanded) return { render: () => [], invalidate() {} };
 
+      const badge = theme.fg("dim", expandBadge(true));
       const all = output.split("\n");
       const fn = (w: number) => {
         const result: string[] = all.map((l) => theme.bg(color, l));
-        const rw = visibleWidth(right);
-        const pad = Math.max(1, w - rw);
-        result.push(theme.bg(color, " ".repeat(pad)) + right);
+        const r = theme.bg(color, badge);
+        const pad = Math.max(1, w - visibleWidth(r));
+        result.push(theme.bg(color, " ".repeat(pad)) + r);
         return result;
       };
       return { render: fn, invalidate() {} };
