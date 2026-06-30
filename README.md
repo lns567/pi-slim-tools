@@ -11,7 +11,7 @@
 ## 安装
 
 ```bash
-pi install github:lns567/pi-slim-tools
+pi install pi-slim-tools
 ```
 
 ## 手动安装
