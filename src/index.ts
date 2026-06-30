@@ -50,8 +50,12 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     ...origBash,
     renderShell: "self",
-    renderCall(args, theme) {
-      const cmd = args.command.length > 70 ? `${args.command.slice(0, 67)}…` : args.command;
+    renderCall(args, theme, context) {
+      const cmd = context.argsComplete && args.command
+        ? args.command.length > 70
+          ? `${args.command.slice(0, 67)}…`
+          : args.command
+        : "…";
       const left = theme.fg("bashMode", `$ ${cmd}`);
       const right = theme.fg("dim", "running…");
       const fn = alignRight(theme, "toolPendingBg", left, right);
@@ -98,8 +102,8 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     ...origRead,
     renderShell: "self",
-    renderCall(args, theme) {
-      let left = theme.fg("toolTitle", "📄 ") + theme.fg("accent", args.path);
+    renderCall(args, theme, context) {
+      let left = theme.fg("toolTitle", "📄 ") + theme.fg("accent", context.argsComplete ? args.path : "…");
       if (args.offset) left += theme.fg("dim", ` @L${args.offset}`);
       const right = theme.fg("dim", "reading…");
       const fn = alignRight(theme, "toolPendingBg", left, right);
@@ -139,8 +143,8 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     ...origEdit,
     renderShell: "self",
-    renderCall(args, theme) {
-      const left = theme.fg("toolTitle", "✏️ ") + theme.fg("accent", args.path);
+    renderCall(args, theme, context) {
+      const left = theme.fg("toolTitle", "✏️ ") + theme.fg("accent", context.argsComplete ? args.path : "…");
       const right = theme.fg("dim", "editing…");
       const fn = alignRight(theme, "toolPendingBg", left, right);
       return { render: (w: number) => fn(w), invalidate() {} };
@@ -186,9 +190,9 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     ...origWrite,
     renderShell: "self",
-    renderCall(args, theme) {
-      const n = args.content.split("\n").length;
-      const left = theme.fg("toolTitle", "📝 ") + theme.fg("accent", args.path) + theme.fg("dim", ` (${n}L)`);
+    renderCall(args, theme, context) {
+      const n = args.content ? args.content.split("\n").length : 0;
+      const left = theme.fg("toolTitle", "📝 ") + theme.fg("accent", context.argsComplete ? args.path : "…") + theme.fg("dim", ` (${n}L)`);
       const right = theme.fg("dim", "writing…");
       const fn = alignRight(theme, "toolPendingBg", left, right);
       return { render: (w: number) => fn(w), invalidate() {} };
@@ -221,8 +225,8 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     ...origGrep,
     renderShell: "self",
-    renderCall(args, theme) {
-      const left = theme.fg("toolTitle", "🔍 ") + theme.fg("accent", args.pattern);
+    renderCall(args, theme, context) {
+      const left = theme.fg("toolTitle", "🔍 ") + theme.fg("accent", context.argsComplete ? args.pattern : "…");
       const right = theme.fg("dim", "searching…");
       const fn = alignRight(theme, "toolPendingBg", left, right);
       return { render: (w: number) => fn(w), invalidate() {} };
@@ -259,8 +263,8 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     ...origFind,
     renderShell: "self",
-    renderCall(args, theme) {
-      const left = theme.fg("toolTitle", "📁 ") + args.path;
+    renderCall(args, theme, context) {
+      const left = theme.fg("toolTitle", "📁 ") + (context.argsComplete ? args.path : "…");
       const right = theme.fg("dim", "finding…");
       const fn = alignRight(theme, "toolPendingBg", left, right);
       return { render: (w: number) => fn(w), invalidate() {} };
@@ -294,8 +298,8 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     ...origLs,
     renderShell: "self",
-    renderCall(args, theme) {
-      const left = theme.fg("toolTitle", "📂 ") + (args.path ?? ".");
+    renderCall(args, theme, context) {
+      const left = theme.fg("toolTitle", "📂 ") + (context.argsComplete ? (args.path ?? ".") : "…");
       const right = theme.fg("dim", "listing…");
       const fn = alignRight(theme, "toolPendingBg", left, right);
       return { render: (w: number) => fn(w), invalidate() {} };
