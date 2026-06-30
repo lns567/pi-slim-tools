@@ -1,5 +1,5 @@
 /**
- * Auto-collapse tool outputs - everything on one line when collapsed.
+ * pi-slim-tools: compact single-line output for all built-in tools.
  * Ctrl+O to expand.
  */
 import type {

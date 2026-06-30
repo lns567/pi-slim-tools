@@ -1,7 +1,7 @@
 {
-  "name": "pi-auto-collapse-tools",
+  "name": "pi-slim-tools",
   "version": "1.0.0",
-  "description": "Pi 扩展：默认折叠所有工具输出，终端更清爽。按 Ctrl+O 展开查看详情。",
+  "description": "Pi 扩展：将 bash/read/edit/write/grep/find/ls 的输出压缩为单行摘要，终端更清爽。按 Ctrl+O 展开。",
   "license": "MIT",
   "pi": {
     "extensions": ["./src/index.ts"]
