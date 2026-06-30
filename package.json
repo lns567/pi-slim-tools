@@ -1,12 +1,13 @@
 {
   "name": "pi-slim-tools",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Pi 扩展：将 bash/read/edit/write/grep/find/ls 的输出压缩为单行摘要，终端更清爽。按 Ctrl+O 展开。",
   "license": "MIT",
   "pi": {
     "extensions": ["./src/index.ts"]
   },
   "keywords": [
+    "pi-package",
     "pi-extension",
     "pi",
     "pi-coding-agent",
